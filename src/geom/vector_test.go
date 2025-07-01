@@ -1,9 +1,10 @@
 package geom
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var Tolerance = 0.00000001
