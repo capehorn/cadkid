@@ -1,5 +1,7 @@
 package geom
 
+import "capehorn/cadkid/lang"
+
 var EPSILON_PLANE = 0.001
 
 type CSG struct {
@@ -18,24 +20,59 @@ func NewCylinder(r, y float64) CSG {
 	return CSG{polygons: nil}
 }
 
-func (csg CSG) clone(that CSG) CSG {
-	return CSG{}
+func NewCsg(polygons []Polygon) CSG {
+	return CSG{polygons: polygons}
 }
 
-func (csg CSG) union(that CSG) CSG {
-	return CSG{}
+func (csg CSG) clone() CSG {
+	clone := CSG{}
+	clone.polygons = lang.Map(csg.polygons, Polygon.Clone)
+	return clone
 }
 
-func (csg CSG) subtract(that CSG) CSG {
-	return CSG{}
+func (csg CSG) Union(that CSG) CSG {
+	var a = newNode(lang.Map(csg.polygons, Polygon.Clone))
+	var b = newNode(lang.Map(that.polygons, Polygon.Clone))
+	a.clipTo(b)
+	b.clipTo(a)
+	b.invert()
+	b.clipTo(a)
+	b.invert()
+	a.build(b.allPolygons())
+	return NewCsg(a.allPolygons())
 }
 
-func (csg CSG) intersect(that CSG) CSG {
-	return CSG{}
+func (csg CSG) Subtract(that CSG) CSG {
+	var a = newNode(lang.Map(csg.polygons, Polygon.Clone))
+	var b = newNode(lang.Map(that.polygons, Polygon.Clone))
+	a.invert()
+	a.clipTo(b)
+	b.clipTo(a)
+	b.invert()
+	b.clipTo(a)
+	b.invert()
+	a.build(b.allPolygons())
+	a.invert()
+	return NewCsg(a.allPolygons())
 }
 
-func (csg CSG) inverse(that CSG) CSG {
-	return CSG{}
+func (csg CSG) Intersect(that CSG) CSG {
+	var a = newNode(lang.Map(csg.polygons, Polygon.Clone))
+	var b = newNode(lang.Map(that.polygons, Polygon.Clone))
+	a.invert()
+	b.clipTo(a)
+	b.invert()
+	a.clipTo(b)
+	b.clipTo(a)
+	a.build(b.allPolygons())
+	a.invert()
+	return NewCsg(a.allPolygons())
+}
+
+func (csg CSG) Inverse() CSG {
+	var clone = csg.clone()
+	clone.polygons = lang.Map(clone.polygons, Polygon.Flip)
+	return clone
 }
 
 type node struct {
@@ -45,16 +82,25 @@ type node struct {
 	polygons []Polygon
 }
 
-func (n *node) clone() *node {
-	ps := make([]Polygon, len(n.polygons))
-	for i := 0; 0 < len(n.polygons); i++ {
-		ps[i] = n.polygons[i].Clone()
+func newNode(polygons []Polygon) *node {
+	node := &node{}
+	if len(polygons) == 0 {
+		return node
 	}
+	node.build(polygons)
+	return node
+}
+
+func (n *node) clone() *node {
 	node := &node{}
 	node.plane = n.plane.Clone()
-	node.front = n.front.clone()
-	node.back = n.back.clone()
-	node.polygons = ps
+	if n.front != nil {
+		node.front = n.front.clone()
+	}
+	if n.back != nil {
+		node.back = n.back.clone()
+	}
+	node.polygons = lang.Map(n.polygons, Polygon.Clone)
 	return node
 }
 
@@ -64,8 +110,12 @@ func (n *node) invert() {
 		n.polygons[i] = p.Flip()
 	}
 	n.plane = n.plane.Flip()
-	n.front.invert()
-	n.back.invert()
+	if n.front != nil {
+		n.front.invert()
+	}
+	if n.back != nil {
+		n.back.invert()
+	}
 	temp := n.front
 	n.front = n.back
 	n.back = temp
@@ -74,7 +124,10 @@ func (n *node) invert() {
 // Recursively remove all polygons in `polygons` that are inside this BSP
 // tree.
 func (n *node) clipPolygons(polygons []Polygon) []Polygon {
-	//if (!this.plane) return polygons.slice();
+	// TODO
+	//if n.plane.Normal.Equal(ZeroVector()) {
+	//	return lang.Map(polygons)
+	//}
 	var coplanarFront, coplanarBack, front, back []Polygon
 	for _, p := range polygons {
 		splitPolygon(p, n.plane, coplanarFront, coplanarBack, front, back)
@@ -111,15 +164,19 @@ func (n *node) build(polygons []Polygon) {
 	front := make([]Polygon, 0)
 	back := make([]Polygon, 0)
 	for _, p := range polygons {
-		splitPolygon(p, n.plane, polygons, polygons, front, back)
+		splitPolygon(p, n.plane, n.polygons, n.polygons, front, back)
 	}
-	if (front.length) {
-	if (!this.front) this.front = new CSG.Node();
-	this.front.build(front);
+	if 0 < len(front) {
+		if n.front != nil {
+			n.front = &node{plane: Plane{}, front: nil, back: nil}
+		}
+		n.front.build(front)
 	}
-	if (back.length) {
-	if (!this.back) this.back = new CSG.Node();
-	this.back.build(back);
+	if 0 < len(back) {
+		if n.back != nil {
+			n.back = &node{plane: Plane{}, front: nil, back: nil}
+		}
+		n.back.build(back)
 	}
 }
 
