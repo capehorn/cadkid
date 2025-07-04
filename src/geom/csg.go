@@ -8,7 +8,7 @@ type CSG struct {
 	polygons []Polygon
 }
 
-func NewRectCuboid(x, y, z float64) CSG {
+func NewRectCuboid(center, sides Vector) CSG {
 	return CSG{polygons: nil}
 }
 
@@ -124,31 +124,43 @@ func (n *node) invert() {
 // Recursively remove all polygons in `polygons` that are inside this BSP
 // tree.
 func (n *node) clipPolygons(polygons []Polygon) []Polygon {
-	// TODO
-	//if n.plane.Normal.Equal(ZeroVector()) {
-	//	return lang.Map(polygons)
-	//}
+
+	if n.plane.Normal.Equal(ZeroVector()) {
+		return lang.Copy(polygons)
+	}
 	var coplanarFront, coplanarBack, front, back []Polygon
 	for _, p := range polygons {
 		splitPolygon(p, n.plane, coplanarFront, coplanarBack, front, back)
 	}
-	front = n.front.clipPolygons(front)
-	back = n.back.clipPolygons(back)
+	if n.front != nil {
+		front = n.front.clipPolygons(front)
+	}
+	if n.back != nil {
+		back = n.back.clipPolygons(back)
+	}
 	return append(front, back...)
 }
 
 // clipTo removes all polygons in this BSP tree that are inside the `other` BSP tree
 func (n *node) clipTo(other *node) {
 	n.polygons = other.clipPolygons(n.polygons)
-	n.front.clipTo(other)
-	n.back.clipTo(other)
+	if n.front != nil {
+		n.front.clipTo(other)
+	}
+	if n.back != nil {
+		n.back.clipTo(other)
+	}
 }
 
 // Return a list of all polygons in this BSP tree.
 func (n *node) allPolygons() []Polygon {
 	allPolygons := append(make([]Polygon, 0, len(n.polygons)), n.polygons...)
-	allPolygons = append(allPolygons, n.front.allPolygons()...)
-	allPolygons = append(allPolygons, n.back.allPolygons()...)
+	if n.front != nil {
+		allPolygons = append(allPolygons, n.front.allPolygons()...)
+	}
+	if n.back != nil {
+		allPolygons = append(allPolygons, n.back.allPolygons()...)
+	}
 	return allPolygons
 }
 
