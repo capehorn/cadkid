@@ -8,8 +8,32 @@ type CSG struct {
 	polygons []Polygon
 }
 
-func NewRectCuboid(center, sides Vector) CSG {
-	return CSG{polygons: nil}
+func NewCuboid(c, s Vector) CSG {
+	xHalf := s.X / 2
+	yHalf := s.Y / 2
+	zHalf := s.Z / 2
+	vs := []Vertex{
+		// front face
+		VertexOf(V(c.X+xHalf, yHalf, zHalf)),
+		VertexOf(V(c.X-xHalf, yHalf, zHalf)),
+		VertexOf(V(c.X-xHalf, -yHalf, zHalf)),
+		VertexOf(V(c.X+xHalf, -yHalf, zHalf)),
+
+		// back face
+		VertexOf(V(c.X+xHalf, yHalf, -zHalf)),
+		VertexOf(V(c.X+xHalf, -yHalf, -zHalf)),
+		VertexOf(V(c.X-xHalf, -yHalf, -zHalf)),
+		VertexOf(V(c.X-xHalf, +yHalf, -zHalf)),
+	}
+
+	return NewCsg([]Polygon{
+		NewPolygon([]Vertex{vs[0], vs[1], vs[2], vs[3]}, nil), // front
+		NewPolygon([]Vertex{vs[4], vs[5], vs[6], vs[7]}, nil), // back
+		NewPolygon([]Vertex{vs[0], vs[4], vs[7], vs[1]}, nil), // top
+		NewPolygon([]Vertex{vs[3], vs[2], vs[6], vs[5]}, nil), // bottom
+		NewPolygon([]Vertex{vs[1], vs[7], vs[6], vs[2]}, nil), // left
+		NewPolygon([]Vertex{vs[0], vs[3], vs[5], vs[4]}, nil), // right
+	})
 }
 
 func NewSphere(r float64) CSG {

@@ -1,5 +1,7 @@
 package geom
 
+import "capehorn/cadkid/lang"
+
 type Polygon struct {
 	Vertices []Vertex
 	Shared   any
@@ -37,4 +39,13 @@ func (p Polygon) Flip() Polygon {
 		Shared:   p.Shared,
 		Plane:    NewPlane(vs[0].Position, vs[1].Position, vs[2].Position),
 	}
+}
+
+func (p Polygon) Transform(m Matrix) Polygon {
+	vertices := lang.Map(p.Vertices, func(v Vertex) Vertex {
+		return Vertex{
+			Position: m.MulPosition(v.Position),
+			Normal:   m.MulDirection(v.Normal)}
+	})
+	return Polygon{Vertices: vertices}
 }

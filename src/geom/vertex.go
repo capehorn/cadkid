@@ -5,6 +5,10 @@ type Vertex struct {
 	Normal   Vector
 }
 
+func VertexOf(v Vector) Vertex {
+	return Vertex{Position: v}
+}
+
 func InterpolateVertices(v1, v2, v3 Vertex, b VectorW) Vertex {
 	v := Vertex{}
 	v.Position = InterpolateVectors(v1.Position, v2.Position, v3.Position, b)
