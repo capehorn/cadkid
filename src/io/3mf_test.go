@@ -1,17 +1,21 @@
 package io
 
 import (
+	"bytes"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMFWriter(t *testing.T) {
-	//assertThat := assert.New(t)
+	assertThat := assert.New(t)
+	result := bytes.NewBuffer([]byte{})
 
-	writer := NewMFWriter()
+	writer := NewMFWriter(result)
 	model := writer.Model()
-	model.Metadata("author", "John Doe")
-	model.Metadata("application", "cadkid")
-	model.Metadata("date", "2025-07-18")
+	model.Metadata("John Doe", "name", "author")
+	model.Metadata("cadkid", "name", "application")
+	model.Metadata("2025-07-18", "name", "date")
 	resources := model.Resources()
 	mesh := resources.Mesh()
 	mesh.Vertex(0, 0, 0)
@@ -22,4 +26,5 @@ func TestMFWriter(t *testing.T) {
 
 	writer.Done()
 
+	assertThat.True(result.Len() > 0)
 }

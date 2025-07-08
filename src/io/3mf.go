@@ -1,15 +1,32 @@
 package io
 
+import (
+	"capehorn/cadkid/lang"
+	"fmt"
+	"io"
+	"strings"
+)
+
 type MFWriter struct {
-	elements []any
+	elements lang.Stack
+	writer   io.Writer
 }
 
-func NewMFWriter() *MFWriter {
-	return &MFWriter{}
+func NewMFWriter(writer io.Writer) *MFWriter {
+	return &MFWriter{writer: writer}
 }
 
 func (mw *MFWriter) Done() {
 
+}
+
+func (mw *MFWriter) write(s string) {
+	_, err := mw.writer.Write([]byte(s))
+	if err != nil {
+		contextErr := fmt.Errorf("failed to write data in 3mf format %w", err)
+		fmt.Println(contextErr)
+		return
+	}
 }
 
 type MFModel struct {
@@ -17,24 +34,27 @@ type MFModel struct {
 }
 
 func (mw *MFWriter) Model() MFModel {
-	return MFModel{writer: w}
+	model := MFModel{writer: mw}
+	mw.elements.Push(model)
+	mw.write("<model>")
+	return model
 }
 
-func (m MFModel) Metadata(name, text string) MFMetadata {
-	// TODO write name and text
+func (m MFModel) Metadata(text string, kvAttributes ...string) MFMetadata {
+	if len(kvAttributes) == 0 {
+		m.writer.write("<metadata>")
+	} else {
+		m.writer.write("<metadata")
+		m.writer.write(kvAttributesToString(kvAttributes...))
+		m.writer.write(">")
+	}
+	m.writer.write(text)
+	m.writer.write("</metadata>")
 	return MFMetadata{writer: m.writer}
 }
 
 type MFMetadata struct {
 	writer *MFWriter
-}
-
-func (m MFMetadata) PreserveAttr(preserve bool) MFMetadata {
-	return m
-}
-
-func (m MFMetadata) TypeAttr(t string) MFMetadata {
-	return m
 }
 
 func (m MFModel) Resources() MFResources {
@@ -64,4 +84,20 @@ type MFResources struct {
 }
 
 type MFReader struct {
+}
+
+func kvAttributesToString(kvAttributes ...string) string {
+	if len(kvAttributes) == 0 {
+		return ""
+	}
+	if len(kvAttributes)%2 != 0 {
+		err := fmt.Errorf("odd number of kbAttributes")
+		fmt.Println(err)
+		return ""
+	}
+	attrs := make([]string, len(kvAttributes)/2)
+	for i := 0; i < len(kvAttributes); i += 2 {
+		attrs = append(attrs, "\""+kvAttributes[i]+"\"=\""+kvAttributes[i+1]+"\"")
+	}
+	return strings.Join(attrs, " ")
 }
