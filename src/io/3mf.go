@@ -8,32 +8,76 @@ import (
 )
 
 type MFWriter struct {
-	elements lang.Stack
 	writer   io.Writer
+	elements lang.Stack[any]
+	indent   int8
 }
 
 func NewMFWriter(writer io.Writer) *MFWriter {
-	return &MFWriter{writer: writer}
+	return &MFWriter{writer: writer, elements: lang.Stack[any]{}, indent: 4}
 }
 
 func (mw *MFWriter) Done() {
 
 }
 
-func (mw *MFWriter) write(s string) {
+func (mw *MFWriter) write(s string) *MFWriter {
 	_, err := mw.writer.Write([]byte(s))
 	if err != nil {
 		contextErr := fmt.Errorf("failed to write data in 3mf format %w", err)
 		fmt.Println(contextErr)
-		return
+		return mw
 	}
+	return mw
 }
+
+type MFUnit int8
+
+const (
+	Micron MFUnit = iota
+	Millimeter
+	Centimeter
+	Inch
+	Foot
+	Meter
+)
 
 type MFModel struct {
 	writer *MFWriter
 }
 
-func (mw *MFWriter) Model() MFModel {
+type MFModelAttr struct {
+	Unit                  MFUnit
+	RequiredExtensions    string
+	RecommendedExtensions string
+	Lang                  string
+}
+
+type MFMetadata struct {
+	writer *MFWriter
+}
+
+type MFResources struct {
+	writer *MFWriter
+}
+
+type MFBaseMaterials struct {
+	writer *MFWriter
+}
+
+type MFObject struct {
+	writer *MFWriter
+}
+
+type MFObjectAttr struct {
+	Id uint32
+}
+
+type MFMesh struct {
+	writer *MFWriter
+}
+
+func (mw *MFWriter) Model(attr MFModelAttr) MFModel {
 	model := MFModel{writer: mw}
 	mw.elements.Push(model)
 	mw.write("<model>")
@@ -53,20 +97,39 @@ func (m MFModel) Metadata(text string, kvAttributes ...string) MFMetadata {
 	return MFMetadata{writer: m.writer}
 }
 
-type MFMetadata struct {
-	writer *MFWriter
-}
-
 func (m MFModel) Resources() MFResources {
-	return MFResources{writer: m.writer}
+	resources := MFResources{writer: m.writer}
+	m.writer.elements.Push(resources)
+	m.writer.write("<resources>")
+	return resources
 }
 
-func (r MFResources) Mesh() MFMesh {
-	return MFMesh{writer: r.writer}
+func (m MFResources) BaseMaterials(id uint32) MFBaseMaterials {
+	baseMaterials := MFBaseMaterials{writer: m.writer}
+	m.writer.elements.Push(baseMaterials)
+	m.writer.write("<basematerials id=\"" + fmt.Sprint(id) + "\">")
+	return baseMaterials
 }
 
-type MFMesh struct {
-	writer *MFWriter
+type SRGB = string
+
+func (m MFBaseMaterials) Base(name string, displayColor SRGB) MFBaseMaterials {
+	m.writer.write("<base name=\"" + name + "\" displaycolor=\"" + displayColor + "\"/>")
+	return m
+}
+
+func (m MFResources) Object(attr MFObjectAttr) MFObject {
+	object := MFObject{writer: m.writer}
+	m.writer.elements.Push(object)
+	m.writer.write("<object>")
+	return object
+}
+
+func (m MFObject) Mesh() MFMesh {
+	mesh := MFMesh{writer: m.writer}
+	m.writer.elements.Push(mesh)
+	m.writer.write("<mesh>")
+	return mesh
 }
 
 func (m MFMesh) Vertex(x, y, z float64) MFMesh {
@@ -77,10 +140,6 @@ func (m MFMesh) Vertex(x, y, z float64) MFMesh {
 func (m MFMesh) Triangle(v1, v2, v3 uint32) MFMesh {
 	// TODO write x, y, z
 	return m
-}
-
-type MFResources struct {
-	writer *MFWriter
 }
 
 type MFReader struct {

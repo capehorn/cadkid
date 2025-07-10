@@ -2,29 +2,29 @@ package lang
 
 import "fmt"
 
-type Stack struct {
-	items []any
+type Stack[T any] struct {
+	items []T
 }
 
-func (s *Stack) Push(data any) {
+func (s *Stack[T]) Push(data T) {
 	s.items = append(s.items, data)
 }
 
-func (s *Stack) Pop() {
+func (s *Stack[T]) Pop() {
 	if s.IsEmpty() {
 		return
 	}
 	s.items = s.items[:len(s.items)-1]
 }
 
-func (s *Stack) Top() (any, error) {
+func (s *Stack[T]) Top() (any, error) {
 	if s.IsEmpty() {
 		return nil, fmt.Errorf("stack is empty")
 	}
 	return s.items[len(s.items)-1], nil
 }
 
-func (s *Stack) IsEmpty() bool {
+func (s *Stack[T]) IsEmpty() bool {
 	if len(s.items) == 0 {
 		return true
 	}
