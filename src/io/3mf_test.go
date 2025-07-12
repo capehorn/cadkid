@@ -7,15 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMFWriter(t *testing.T) {
+func TestMFWriter_withIndent4(t *testing.T) {
 	assertThat := assert.New(t)
 	result := bytes.NewBuffer([]byte{})
 
-	writer := NewMFWriter(result)
+	writer := NewMFWriter(result, 4)
 	model := writer.Model(MFModelAttr{Unit: Millimeter, Lang: "en"})
-	model.Metadata("John Doe", "name", "author")
-	model.Metadata("cadkid", "name", "application")
-	model.Metadata("2025-07-18", "name", "date")
+	model.Metadata("John Doe", MFMetadataAttr{Name: "author"})
+	model.Metadata("cadkid", MFMetadataAttr{Name: "application", Preserve: True})
+	model.Metadata("2025-07-18", MFMetadataAttr{Name: "date", Type: "xs:date"})
 	resources := model.Resources()
 	baseMat := resources.BaseMaterials(1)
 	baseMat.Base("green", "#21BB4CFF")

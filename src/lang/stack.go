@@ -10,16 +10,20 @@ func (s *Stack[T]) Push(data T) {
 	s.items = append(s.items, data)
 }
 
-func (s *Stack[T]) Pop() {
+func (s *Stack[T]) Pop() (T, error) {
 	if s.IsEmpty() {
-		return
+		var absent T
+		return absent, fmt.Errorf("stack is empty")
 	}
+	v := s.items[len(s.items)-1]
 	s.items = s.items[:len(s.items)-1]
+	return v, nil
 }
 
-func (s *Stack[T]) Top() (any, error) {
+func (s *Stack[T]) Peek() (T, error) {
 	if s.IsEmpty() {
-		return nil, fmt.Errorf("stack is empty")
+		var absent T
+		return absent, fmt.Errorf("stack is empty")
 	}
 	return s.items[len(s.items)-1], nil
 }
@@ -29,4 +33,8 @@ func (s *Stack[T]) IsEmpty() bool {
 		return true
 	}
 	return false
+}
+
+func (s *Stack[T]) Length() int {
+	return len(s.items)
 }
