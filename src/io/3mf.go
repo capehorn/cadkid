@@ -4,6 +4,7 @@ import (
 	"capehorn/cadkid/lang"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -26,45 +27,62 @@ type elementStringer interface {
 	toString() string
 }
 
-type attrsStringer interface {
-	toString() string
-}
-
 func NewMFWriter(writer io.Writer, indent uint8) *MFWriter {
 	nfWriter := &MFWriter{writer: writer, elements: lang.Stack[elementStringer]{}, useIndent: 0 < indent, indent: strings.Repeat(" ", int(indent))}
 	nfWriter.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 	return nfWriter
 }
 
-func (mw *MFWriter) writeElement(elStringer elementStringer, attrsStringer attrsStringer) *MFWriter {
-	return mw.writeElementWithText(elStringer, attrsStringer, "")
+func (mw *MFWriter) writeElement(element string, attrs string, selfClosing bool) *MFWriter {
+	return mw.writeElementWithText(element, attrs, "", selfClosing)
 }
 
-func (mw *MFWriter) writeElementWithText(elStringer elementStringer, attrsStringer attrsStringer, text string) *MFWriter {
+func (mw *MFWriter) writeElementWithText(element string, attrs string, text string, selfClosing bool) *MFWriter {
 	// don't use indent for the first element
 	if mw.useIndent {
 		mw.write("\n")
-		switch elStringer.(type) {
-		case MFModel:
-			break
-		default:
-			mw.write(mw.indent)
+		if element != "model" {
+			mw.write(strings.Repeat(mw.indent, mw.elements.Length()))
 		}
 	}
-	if attrsStringer == nil {
-		mw.write("<" + elStringer.toString() + ">" + text)
+	mw.write("<" + element)
+	if attrs == "" {
+		if text == "" {
+			if selfClosing {
+				mw.write("/>")
+			} else {
+				mw.write(">")
+			}
+		} else {
+			mw.write(">" + text)
+		}
 	} else {
-		mw.write("<" + elStringer.toString() + " " + attrsStringer.toString() + ">" + text)
+		if text == "" {
+			if selfClosing {
+				mw.write(attrs + "/>")
+			} else {
+				mw.write(attrs + ">")
+			}
+		} else {
+			mw.write(attrs + ">" + text)
+		}
 	}
 	return mw
 }
 
-func (mw *MFWriter) writeCloseElement(elStringer elementStringer) *MFWriter {
-	mw.write("</" + elStringer.toString() + ">")
+func (mw *MFWriter) writeCloseElement(element string) *MFWriter {
+	mw.write("</" + element + ">")
 	return mw
 }
 
 func attr(name, value string) string {
+	return name + "=\"" + value + "\""
+}
+
+func attrWithDefault(name, value string, defaultValue string) string {
+	if value == "" {
+		return name + "=\"" + defaultValue + "\""
+	}
 	return name + "=\"" + value + "\""
 }
 
@@ -74,7 +92,7 @@ func (mw *MFWriter) Done() {
 			mw.write("\n")
 			elStringer, _ := mw.elements.Pop()
 			mw.write(strings.Repeat(mw.indent, i))
-			mw.writeCloseElement(elStringer)
+			mw.writeCloseElement(elStringer.toString())
 		}
 	}
 }
@@ -93,16 +111,18 @@ func (mw *MFWriter) writeBytes(b []byte) *MFWriter {
 	return mw
 }
 
-type MFUnit int8
+type MFUnit = string
 
 const (
-	Micron MFUnit = iota
-	Millimeter
-	Centimeter
-	Inch
-	Foot
-	Meter
+	Micron     MFUnit = "micron"
+	Millimeter MFUnit = "millimeter"
+	Centimeter MFUnit = "centimeter"
+	Inch       MFUnit = "inch"
+	Foot       MFUnit = "foot"
+	Meter      MFUnit = "meter"
 )
+
+// MODEL
 
 type MFModel struct {
 	writer *MFWriter
@@ -117,7 +137,30 @@ type MFModelAttr struct {
 	RequiredExtensions    string
 	RecommendedExtensions string
 	Lang                  string
+	Namespaces            map[string]string
 }
+
+func (m MFModelAttr) toString() string {
+	str := strings.Builder{}
+	str.WriteString(attrWithDefault(" unit", m.Unit, Millimeter))
+	str.WriteString(attrWithDefault(" xml:lang", m.Lang, "en-us"))
+
+	if m.RecommendedExtensions != "" {
+		str.WriteString(attr(" requiredextensions", m.RequiredExtensions))
+	}
+	if m.RecommendedExtensions != "" {
+		str.WriteString(attr(" recommendedextensions", m.RecommendedExtensions))
+	}
+	if 0 < len(m.Namespaces) {
+		for k, v := range m.Namespaces {
+			str.WriteString(attr(" xmlns:"+k, v))
+		}
+	}
+
+	return str.String()
+}
+
+// METADATA
 
 type MFMetadata struct {
 	writer *MFWriter
@@ -135,7 +178,7 @@ type MFMetadataAttr struct {
 
 func (m MFMetadataAttr) toString() string {
 	str := strings.Builder{}
-	str.WriteString(attr("name", m.Name))
+	str.WriteString(attr(" name", m.Name))
 	switch m.Preserve {
 	case Undefined:
 		break
@@ -150,100 +193,228 @@ func (m MFMetadataAttr) toString() string {
 	return str.String()
 }
 
+// RESOURCES
+
 type MFResources struct {
 	writer *MFWriter
+}
+
+func (m MFResources) toString() string {
+	return "resources"
 }
 
 type MFBaseMaterials struct {
 	writer *MFWriter
 }
 
+func (m MFBaseMaterials) toString() string {
+	return "basematerials"
+}
+
+type MFBaseMaterialsAttr struct {
+	Id uint32
+}
+
+func (m MFBaseMaterialsAttr) toString() string {
+	return attr(" id", strconv.Itoa(int(m.Id)))
+}
+
+// OBJECT
+
 type MFObject struct {
 	writer *MFWriter
 }
 
-type MFObjectAttr struct {
-	Id uint32
+func (m MFObject) toString() string {
+	return "object"
 }
+
+type MFObjectType = string
+
+const (
+	Model        MFObjectType = "model"
+	SolidSupport MFObjectType = "solidsupport"
+	Support      MFObjectType = "support"
+	Surface      MFObjectType = "surface"
+	Other        MFObjectType = "other"
+)
+
+type MFObjectAttr struct {
+	Id         uint32 // required
+	ObjectType MFObjectType
+	Thumbnail  string
+	PartNumber string
+	Name       string
+	Pid        string
+	PIndex     string
+}
+
+func (m MFObjectAttr) toString() string {
+	str := strings.Builder{}
+	str.WriteString(attr(" id", strconv.Itoa(int(m.Id))))
+	str.WriteString(attrWithDefault(" type", m.ObjectType, Model))
+	if m.Thumbnail != "" {
+		str.WriteString(attr(" thumbnail", m.Thumbnail))
+	}
+	if m.PartNumber != "" {
+		str.WriteString(attr(" partNumber", m.PartNumber))
+	}
+	if m.Name != "" {
+		str.WriteString(attr(" name", m.Name))
+	}
+	if m.Pid != "" {
+		str.WriteString(attr(" pid", m.Pid))
+	}
+	if m.PIndex != "" {
+		str.WriteString(attr(" pindex", m.PIndex))
+	}
+	return str.String()
+}
+
+// MESH
 
 type MFMesh struct {
 	writer *MFWriter
 }
 
+func (m MFMesh) toString() string {
+	return "mesh"
+}
+
+// VERTICES
+
+type MFVertices struct {
+	writer *MFWriter
+}
+
+func (m MFVertices) toString() string {
+	return "vertices"
+}
+
+// TRIANGLES
+
+type MFTriangles struct {
+	writer *MFWriter
+}
+
+func (m MFTriangles) toString() string {
+	return "triangles"
+}
+
+// TRIANGLE
+
+type MFTriangleAttr struct {
+	P1, P2, P3 uint32
+	Pid        string
+}
+
+func (m MFTriangleAttr) toString() string {
+	str := strings.Builder{}
+	if m.P1 != 0 {
+		str.WriteString(attr(" p1", strconv.Itoa(int(m.P1))))
+	}
+	if m.P2 != 0 {
+		str.WriteString(attr(" p2", strconv.Itoa(int(m.P2))))
+	}
+	if m.P3 != 0 {
+		str.WriteString(attr(" p3", strconv.Itoa(int(m.P3))))
+	}
+	if m.Pid != "" {
+		str.WriteString(attr(" pid", m.Pid))
+	}
+	return str.String()
+}
+
+// Construction of a 3mf
+
 func (mw *MFWriter) Model(attr MFModelAttr) MFModel {
 	model := MFModel{writer: mw}
 	mw.elements.Push(model)
-	mw.writeElement(model, nil)
-	//mw.write("<model>")
+	mw.writeElement("model", attr.toString(), false)
 	return model
 }
 
 func (m MFModel) Metadata(text string, attr MFMetadataAttr) MFMetadata {
 	metadata := MFMetadata{writer: m.writer}
-	m.writer.writeElementWithText(metadata, attr, text).writeCloseElement(metadata)
+	m.writer.writeElementWithText("metadata", attr.toString(), text, false).writeCloseElement("metadata")
 	return metadata
 }
 
 func (m MFModel) Resources() MFResources {
 	resources := MFResources{writer: m.writer}
-	//m.writer.elements.Push(resources)
-	//m.writer.write("<resources>")
+	m.writer.elements.Push(resources)
+	m.writer.writeElement("resources", "", false)
 	return resources
 }
 
 func (m MFResources) BaseMaterials(id uint32) MFBaseMaterials {
 	baseMaterials := MFBaseMaterials{writer: m.writer}
-	//m.writer.elements.Push(baseMaterials)
-	//m.writer.write("<basematerials id=\"" + fmt.Sprint(id) + "\">")
+	m.writer.elements.Push(baseMaterials)
+	m.writer.writeElement("basematerials", MFBaseMaterialsAttr{Id: id}.toString(), false)
 	return baseMaterials
 }
 
 type SRGB = string
 
 func (m MFBaseMaterials) Base(name string, displayColor SRGB) MFBaseMaterials {
-	//m.writer.write("<base name=\"" + name + "\" displaycolor=\"" + displayColor + "\"/>")
+	m.writer.writeElement("base", strings.Join([]string{
+		attr(" name", name),
+		attr(" displaycolor", displayColor)}, ""),
+		true)
 	return m
 }
 
 func (m MFResources) Object(attr MFObjectAttr) MFObject {
 	object := MFObject{writer: m.writer}
-	//m.writer.elements.Push(object)
-	//m.writer.write("<object>")
+	m.writer.elements.Push(object)
+	m.writer.writeElement("object", attr.toString(), false)
 	return object
 }
 
 func (m MFObject) Mesh() MFMesh {
 	mesh := MFMesh{writer: m.writer}
-	//m.writer.elements.Push(mesh)
-	//m.writer.write("<mesh>")
+	m.writer.elements.Push(mesh)
+	m.writer.writeElement("object", "", false)
 	return mesh
 }
 
-func (m MFMesh) Vertex(x, y, z float64) MFMesh {
-	// TODO write x, y, z
+func (m MFMesh) Vertices() MFVertices {
+	vertices := MFVertices{writer: m.writer}
+	m.writer.elements.Push(vertices)
+	m.writer.writeElement("vertices", "", false)
+	return vertices
+}
+
+func (m MFVertices) Vertex(x, y, z float64) MFVertices {
+	m.writer.writeElement("vertex", strings.Join([]string{
+		attr(" x", strconv.FormatFloat(x, 'f', -1, 64)),
+		attr(" y", strconv.FormatFloat(y, 'f', -1, 64)),
+		attr(" z", strconv.FormatFloat(z, 'f', -1, 64)),
+	}, ""), true)
 	return m
 }
 
-func (m MFMesh) Triangle(v1, v2, v3 uint32) MFMesh {
-	// TODO write x, y, z
+func (m MFMesh) Triangles() MFTriangles {
+	triangles := MFTriangles{writer: m.writer}
+	m.writer.elements.Push(triangles)
+	m.writer.writeElement("triangles", "", false)
+	return triangles
+}
+
+func (m MFTriangles) Triangle(v1, v2, v3 uint32, attrs *MFTriangleAttr) MFTriangles {
+	attrStr := strings.Join([]string{
+		attr(" v1", strconv.Itoa(int(v1))),
+		attr(" v2", strconv.Itoa(int(v2))),
+		attr(" v3", strconv.Itoa(int(v3))),
+	}, "")
+
+	if attrs != nil {
+		attrStr += attrs.toString()
+	}
+
+	m.writer.writeElement("vertex", attrStr, true)
 	return m
 }
 
 type MFReader struct {
-}
-
-func kvAttributesToString(kvAttributes ...string) string {
-	if len(kvAttributes) == 0 {
-		return ""
-	}
-	if len(kvAttributes)%2 != 0 {
-		err := fmt.Errorf("odd number of kbAttributes")
-		fmt.Println(err)
-		return ""
-	}
-	attrs := make([]string, len(kvAttributes)/2)
-	for i := 0; i < len(kvAttributes); i += 2 {
-		attrs = append(attrs, "\""+kvAttributes[i]+"\"=\""+kvAttributes[i+1]+"\"")
-	}
-	return strings.Join(attrs, " ")
 }

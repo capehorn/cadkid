@@ -12,7 +12,7 @@ func TestMFWriter_withIndent4(t *testing.T) {
 	result := bytes.NewBuffer([]byte{})
 
 	writer := NewMFWriter(result, 4)
-	model := writer.Model(MFModelAttr{Unit: Millimeter, Lang: "en"})
+	model := writer.Model(MFModelAttr{Unit: Millimeter, Lang: "en-us"})
 	model.Metadata("John Doe", MFMetadataAttr{Name: "author"})
 	model.Metadata("cadkid", MFMetadataAttr{Name: "application", Preserve: True})
 	model.Metadata("2025-07-18", MFMetadataAttr{Name: "date", Type: "xs:date"})
@@ -20,13 +20,15 @@ func TestMFWriter_withIndent4(t *testing.T) {
 	baseMat := resources.BaseMaterials(1)
 	baseMat.Base("green", "#21BB4CFF")
 	baseMat.Base("red", "#FF0000FF")
-	obj1 := resources.Object(MFObjectAttr{Id: 1})
+	obj1 := resources.Object(MFObjectAttr{Id: 1, Name: "anObject"})
 	mesh := obj1.Mesh()
-	mesh.Vertex(0, 0, 0)
-	mesh.Vertex(10, 0, 0)
-	mesh.Vertex(10, 10, 0)
+	vs := mesh.Vertices()
+	vs.Vertex(0, 0, 0)
+	vs.Vertex(10, 0, 0)
+	vs.Vertex(10, 10, 0)
 
-	mesh.Triangle(0, 1, 2)
+	ts := mesh.Triangles()
+	ts.Triangle(0, 1, 2, nil)
 
 	writer.Done()
 
