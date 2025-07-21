@@ -325,12 +325,41 @@ func (m MFTriangleAttr) toString() string {
 	return str.String()
 }
 
+// BUILD
+
+type MFBuild struct {
+	writer *MFWriter
+}
+
+func (m MFBuild) toString() string {
+	return "build"
+}
+
+// ITEM
+
+type MFItem struct {
+	writer *MFWriter
+}
+
+func (m MFItem) toString() string {
+	return "item"
+}
+
+type MFItemAttr struct {
+	Transform  [12]float64 // Row-major affine transformation matrix, column four [ 0, 0, 0, 1 ] is not present
+	PartNumber string
+}
+
+func (m MFItemAttr) toString() string {
+	return "itemAttr, not implemented yet"
+}
+
 // Construction of a 3mf
 
 func (mw *MFWriter) Model(attr MFModelAttr) MFModel {
 	model := MFModel{writer: mw}
 	mw.elements.Push(model)
-	mw.writeElement("model", attr.toString(), false)
+	mw.writeElement(model.toString(), attr.toString(), false)
 	return model
 }
 
@@ -343,14 +372,14 @@ func (m MFModel) Metadata(text string, attr MFMetadataAttr) MFMetadata {
 func (m MFModel) Resources() MFResources {
 	resources := MFResources{writer: m.writer}
 	m.writer.elements.Push(resources)
-	m.writer.writeElement("resources", "", false)
+	m.writer.writeElement(resources.toString(), "", false)
 	return resources
 }
 
 func (m MFResources) BaseMaterials(id uint32) MFBaseMaterials {
 	baseMaterials := MFBaseMaterials{writer: m.writer}
 	m.writer.elements.Push(baseMaterials)
-	m.writer.writeElement("basematerials", MFBaseMaterialsAttr{Id: id}.toString(), false)
+	m.writer.writeElement(baseMaterials.toString(), MFBaseMaterialsAttr{Id: id}.toString(), false)
 	return baseMaterials
 }
 
@@ -367,21 +396,21 @@ func (m MFBaseMaterials) Base(name string, displayColor SRGB) MFBaseMaterials {
 func (m MFResources) Object(attr MFObjectAttr) MFObject {
 	object := MFObject{writer: m.writer}
 	m.writer.elements.Push(object)
-	m.writer.writeElement("object", attr.toString(), false)
+	m.writer.writeElement(object.toString(), attr.toString(), false)
 	return object
 }
 
 func (m MFObject) Mesh() MFMesh {
 	mesh := MFMesh{writer: m.writer}
 	m.writer.elements.Push(mesh)
-	m.writer.writeElement("object", "", false)
+	m.writer.writeElement(mesh.toString(), "", false)
 	return mesh
 }
 
 func (m MFMesh) Vertices() MFVertices {
 	vertices := MFVertices{writer: m.writer}
 	m.writer.elements.Push(vertices)
-	m.writer.writeElement("vertices", "", false)
+	m.writer.writeElement(vertices.toString(), "", false)
 	return vertices
 }
 
@@ -397,7 +426,7 @@ func (m MFVertices) Vertex(x, y, z float64) MFVertices {
 func (m MFMesh) Triangles() MFTriangles {
 	triangles := MFTriangles{writer: m.writer}
 	m.writer.elements.Push(triangles)
-	m.writer.writeElement("triangles", "", false)
+	m.writer.writeElement(triangles.toString(), "", false)
 	return triangles
 }
 
@@ -414,6 +443,20 @@ func (m MFTriangles) Triangle(v1, v2, v3 uint32, attrs *MFTriangleAttr) MFTriang
 
 	m.writer.writeElement("vertex", attrStr, true)
 	return m
+}
+
+func (m MFModel) Build() MFBuild {
+	build := MFBuild{writer: m.writer}
+	m.writer.elements.Push(build)
+	m.writer.writeElement(build.toString(), "", false)
+	return build
+}
+
+func (m MFBuild) Item(objectId uint32, attr MFItemAttr) MFItem {
+	item := MFItem{writer: m.writer}
+	m.writer.elements.Push(item)
+	m.writer.writeElement(item.toString(), attr.toString(), false)
+	return item
 }
 
 type MFReader struct {
