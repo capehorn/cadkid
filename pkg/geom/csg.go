@@ -1,6 +1,6 @@
 package geom
 
-import "capehorn/cadkid/lang"
+import "capehorn/cadkid/pkg/lang"
 
 var EPSILON_PLANE = 0.001
 

@@ -1,6 +1,6 @@
 package geom
 
-import "capehorn/cadkid/lang"
+import "capehorn/cadkid/pkg/lang"
 
 type Polygon struct {
 	Vertices []Vertex

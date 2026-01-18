@@ -1,7 +1,7 @@
 package cad
 
 import (
-	. "capehorn/cadkid/geom"
+	g "capehorn/cadkid/pkg/geom"
 )
 
 type PartId = int32
@@ -9,5 +9,5 @@ type PartId = int32
 type Part struct {
 	Id     PartId
 	Label  string
-	Datums map[DatumId]Matrix
+	Datums map[DatumId]g.Matrix
 }

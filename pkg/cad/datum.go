@@ -1,7 +1,7 @@
 package cad
 
 import (
-	. "capehorn/cadkid/geom"
+	g "capehorn/cadkid/pkg/geom"
 )
 
 type DatumId int32
@@ -9,5 +9,5 @@ type DatumId int32
 type Datum struct {
 	id    DatumId
 	Label string
-	Frame Frame
+	Frame g.Frame
 }
